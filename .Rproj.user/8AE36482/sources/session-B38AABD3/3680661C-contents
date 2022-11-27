@@ -69,9 +69,75 @@ library(tidyverse)
 ```
 
 Read training and test data and perform any cleaning steps
+
 ```{r}
 housesTrain = read_csv("train.csv")
 housesTest = read_csv("test.csv")
+
+# Remove ID column
+housesTrain = select(housesTrain, -Id)
+housesTest = select(housesTest, -Id)
+
+# Majority of Alley's are NA, so they can be removed
+housesTrain = select(housesTrain, -Alley)
+housesTest = select(housesTest, -Alley)
+
+# Drop Utilities as all but 1 are "AllPub"
+housesTrain = select(housesTrain, -Utilities)
+housesTest = select(housesTest, -Utilities)
+
+# OverallQual should be factor instead of a integer
+housesTrain$OverallQual = factor(housesTrain$OverallQual, levels = c(1,2,3,4,5,6,7,8,9,10))
+housesTest$OverallQual = factor(housesTest$OverallQual, levels = c(1,2,3,4,5,6,7,8,9,10))
+
+# OverallCond should be factor instead of a integer
+housesTrain$OverallCond = factor(housesTrain$OverallCond, levels = c(1,2,3,4,5,6,7,8,9))
+housesTest$OverallCond = factor(housesTest$OverallCond, levels = c(1,2,3,4,5,6,7,8,9))
+
+# BsmtFullBath should be a factor instead of integer
+housesTrain$BsmtFullBath = factor(housesTrain$BsmtFullBath, levels = c(0,1,2,3))
+housesTest$BsmtFullBath = factor(housesTest$BsmtFullBath, levels = c(0,1,2,3))
+
+# BsmtHalfBath
+housesTrain$BsmtHalfBath = factor(housesTrain$BsmtHalfBath, levels = c(0,1,2))
+housesTest$BsmtHalfBath = factor(housesTest$BsmtHalfBath, levels = c(0,1,2))
+
+# FullBath
+housesTrain$FullBath = factor(housesTrain$FullBath, levels = c(0,1,2,3))
+housesTest$FullBath = factor(housesTest$FullBath, levels = c(0,1,2,3))
+
+# HalfBath should be a factor instead of integer
+housesTrain$HalfBath = factor(housesTrain$HalfBath, levels = c(0,1,2))
+housesTest$HalfBath = factor(housesTest$HalfBath, levels = c(0,1,2))
+
+# BedroomAbvGr should be a factor instead of integer
+housesTrain$BedroomAbvGr = factor(housesTrain$BedroomAbvGr, levels = c(0,1,2,3,4,5,6,7,8))
+housesTest$BedroomAbvGr = factor(housesTest$BedroomAbvGr, levels = c(0,1,2,3,4,5,6,7,8))
+
+# KitchenAbvGr should be a factor instead of integer
+housesTrain$KitchenAbvGr = factor(housesTrain$KitchenAbvGr, levels = c(0,1,2,3))
+housesTest$KitchenAbvGr = factor(housesTest$KitchenAbvGr, levels = c(0,1,2,3))
+
+# TotRmsAbvGrd should be a factor instead of integer
+housesTrain$TotRmsAbvGrd = factor(housesTrain$TotRmsAbvGrd, levels = seq(0,14))
+housesTest$TotRmsAbvGrd = factor(housesTest$TotRmsAbvGrd, levels = seq(0,14))
+
+# Log of SalePrice should be used to reduce the variance and better approximate a normal distribution
+housesTrain$SalePrice = log(housesTrain$SalePrice)
+
+```
+
+Initial EDA
+
+```{r}
+# The sale price has a wide variance. Applying a log transformation helps
+housesTrain |>
+  ggplot(aes(x = SalePrice)) +
+  geom_histogram()
+
+housesTrain |> count(`3SsnPorch`)
+
+summary(lm(SalePrice ~ MSSubClass + MSZoning + LotFrontage + LotArea + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + Exterior1st + Exterior2nd + MasVnrType + MasVnrArea + MasVnrArea + ExterQual + ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + BsmtFinType1 + BsmtFinSF1 + BsmtFinType2 + BsmtFinSF2 + BsmtUnfSF + TotalBsmtSF + HeatingQC + CentralAir + Electrical + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + BsmtFullBath + BsmtHalfBath + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + Functional + Fireplaces + FireplaceQu + GarageType + GarageYrBlt + GarageFinish + GarageCars + GarageArea + GarageQual + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch`, data = housesTrain))
 
 
 ```

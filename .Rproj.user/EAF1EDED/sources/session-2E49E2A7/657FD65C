@@ -1,12 +1,12 @@
 {
-    "id": "3680661C",
+    "id": "657FD65C",
     "path": "~/Dropbox/Personal/SMU MSDS/04 - Statistical Foundations for Data Science/MSDS 6371 Project/MSDS 6371 Project - Yule and Kondakindi.qmd",
     "project_path": "MSDS 6371 Project - Yule and Kondakindi.qmd",
     "type": "quarto_markdown",
     "hash": "0",
     "contents": "",
     "dirty": false,
-    "created": 1669381531265.0,
+    "created": 1669578086009.0,
     "source_on_save": false,
     "relative_order": 1,
     "properties": {
@@ -15,18 +15,18 @@
         "chunk_output_type": "console",
         "source_window_id": "",
         "Source": "Source",
-        "docOutlineVisible": "0",
+        "docOutlineVisible": "1",
         "rmdVisualCollapsedChunks": "",
-        "cursorPosition": "111,0",
-        "scrollLine": "109",
+        "cursorPosition": "2,42",
+        "scrollLine": "0",
         "rmdVisualModeLocation": "2:0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1669580159,
+    "lastKnownWriteTime": 1669583522,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1669580159,
+    "last_content_update": 1669583522690,
     "read_only": false,
     "read_only_alternatives": []
 }
