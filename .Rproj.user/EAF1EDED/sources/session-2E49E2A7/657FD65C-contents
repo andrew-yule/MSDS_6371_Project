@@ -55,7 +55,7 @@ Residual Plots Influential point analysis (Cook's D and Leverage) Make sure to a
 
 #### Comparing Competing Models
 
-Adj R2 Internal CV Press\
+Adj R2 Internal CV Press
 Kaggle Score
 
 #### Conclusion
@@ -65,47 +65,160 @@ A short summary of the analysis
 # Appendix
 
 Load required libraries
+
 ```{r}
 library(tidyverse)
 library(broom)
 ```
 
 Read training and test data and perform any cleaning steps
+
 ```{r}
 housesTrain = read_csv("train.csv")
 housesTest = read_csv("test.csv")
 
-# Remove ID column
+# Remove ID column only from the training set
 housesTrain = select(housesTrain, -Id)
-housesTest = select(housesTest, -Id)
 
-# Majority of Alley's are NA, so they can be removed
-housesTrain = select(housesTrain, -Alley)
-housesTest = select(housesTest, -Alley)
+# Find which columns have missing values between the training and test data sets
+colsToDrop = housesTrain |>
+  select_if(function(x) any(is.na(x))) |>
+  colnames()
+colsToDrop2 = housesTest |>
+  select_if(function(x) any(is.na(x))) |>
+  colnames()
 
-# Drop Utilities as all but 1 are "AllPub". Drop PoolQC, Fence, MiscFeature, FireplaceQu, and LotFrontage, as many are missing
-housesTrain = select(housesTrain, c(-Utilities, - PoolQC, -Fence, -MiscFeature, -FireplaceQu, -LotFrontage))
-housesTest = select(housesTest, c(-Utilities, - PoolQC, -Fence, -MiscFeature, -FireplaceQu, -LotFrontage))
+# Remove any of the columns that had missing values
+housesTrain =  housesTrain |>
+  select(-starts_with(c(colsToDrop, colsToDrop2)))
+housesTest =  housesTest |>
+  select(-starts_with(c(colsToDrop, colsToDrop2)))
+
+# 
+# # Majority of Alley's are NA, so they can be removed
+# housesTrain = select(housesTrain, -Alley)
+# housesTest = select(housesTest, -Alley)
+# 
+# # Drop Utilities as all but 1 are "AllPub". Drop PoolQC, Fence, MiscFeature, FireplaceQu, and LotFrontage, as many are missing
+# housesTrain = select(housesTrain, c(-Utilities, - PoolQC, -Fence, -MiscFeature, -FireplaceQu, -LotFrontage))
+# housesTest = select(housesTest, c(-Utilities, - PoolQC, -Fence, -MiscFeature, -FireplaceQu, -LotFrontage))
 
 # MoSold should be a factor instead of integer
-housesTrain$MoSold = factor(housesTrain$MoSold, levels = seq(1,12))
-housesTest$MoSold = factor(housesTest$MoSold, levels = seq(1,12))
+housesTrain$MoSold = factor(housesTrain$MoSold, levels = seq(1, 12))
+housesTest$MoSold = factor(housesTest$MoSold, levels = seq(1, 12))
 
-# Log of SalePrice should be used to reduce the variance and better approximate a normal distribution
+# Log of SalePrice should be used to reduce the variance
 housesTrain$SalePrice = log(housesTrain$SalePrice)
 
 ```
 
 Full model creation
+
 ```{r}
 # The sale price has a wide variance. Applying a log transformation helps
 housesTrain |>
   ggplot(aes(x = SalePrice)) +
   geom_histogram()
 
-housesTrain |> count(GarageCond)
+housesTrain |> count(`3SsnPorch`)
 
-fit = lm(SalePrice ~ MSSubClass + MSZoning + LotArea + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + Exterior1st + Exterior2nd + MasVnrType + MasVnrArea + MasVnrArea + ExterQual + ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + BsmtFinType1 + BsmtFinSF1 + BsmtFinType2 + BsmtFinSF2 + BsmtUnfSF + TotalBsmtSF + Heating + HeatingQC + CentralAir + Electrical + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + BsmtFullBath + BsmtHalfBath + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + Functional + Fireplaces + GarageType + GarageYrBlt + GarageFinish + GarageCars + GarageArea + GarageQual + GarageCond + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + MiscVal + MoSold + YrSold + SaleType + SaleCondition, data = housesTrain)
+fit = lm(SalePrice ~ MSSubClass + LotArea + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + MiscVal + MoSold + YrSold + SaleCondition, data = housesTrain)
 summary(fit)
 
 ```
+
+Test the basic model against the test data set and submit to Kaggle to see the score
+
+```{r}
+results = housesTest
+results$SalePrice = exp(predict.lm(fit, newdata = housesTest))
+results = results |>
+  select(Id, SalePrice)
+
+# Export
+write_csv(results, "test_submission_4.csv")
+```
+
+Try using forward stepping approach
+
+```{r}
+# Define intercept-only model, this is also just the median sale price
+intercept_only = lm(SalePrice ~ 1, data = housesTrain)
+
+# Define model with all predictors
+all = lm(SalePrice ~ ., data = housesTrain)
+
+# Perform forward step-wise regression
+forward = step(intercept_only, direction = 'forward', scope = formula(all), trace = 0)
+
+# View final model
+summary(forward)
+
+```
+
+Test the forward model against the test data set and submit to Kaggle
+
+```{r}
+results = housesTest
+results$SalePrice = exp(predict.lm(forward, newdata = housesTest))
+results = results |>
+  select(Id, SalePrice)
+
+# Export
+write_csv(results, "test_submission_forward_1.csv")
+```
+
+Try using backward stepping approach
+
+```{r}
+# Define model with all predictors
+all = lm(SalePrice ~ ., data = housesTrain)
+
+# Perform forward step-wise regression
+backward = step(all, direction = 'backward', scope = formula(all), trace = 0)
+
+# View final model
+summary(backward)
+
+```
+
+Test the backward model against the test data set and submit to Kaggle
+
+```{r}
+results = housesTest
+results$SalePrice = exp(predict.lm(backward, newdata = housesTest))
+results = results |>
+  select(Id, SalePrice)
+
+# Export
+write_csv(results, "test_submission_backward_1.csv")
+```
+
+Try using stepwise stepping approach
+
+```{r}
+# Define intercept-only model, this is also just the average fat amount
+intercept_only = lm(SalePrice ~ 1, data = housesTrain)
+
+# Define model with all predictors
+all = lm(SalePrice ~ ., data = housesTrain)
+
+# Perform forward step-wise regression
+both = step(intercept_only, direction = 'both', scope = formula(all), trace = 0)
+
+# View final model
+summary(both)
+```
+
+Test the stepwise model against the test data set and submit to Kaggle
+
+```{r}
+results = housesTest
+results$SalePrice = exp(predict.lm(both, newdata = housesTest))
+results = results |>
+  select(Id, SalePrice)
+
+# Export
+write_csv(results, "test_submission_stepwise_1.csv")
+```
+
