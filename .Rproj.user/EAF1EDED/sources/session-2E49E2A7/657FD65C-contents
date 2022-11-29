@@ -69,6 +69,7 @@ Load required libraries
 ```{r}
 library(tidyverse)
 library(broom)
+library(terra)
 ```
 
 Read training and test data and perform any cleaning steps
@@ -94,18 +95,48 @@ housesTrain =  housesTrain |>
 housesTest =  housesTest |>
   select(-starts_with(c(colsToDrop, colsToDrop2)))
 
-# 
-# # Majority of Alley's are NA, so they can be removed
-# housesTrain = select(housesTrain, -Alley)
-# housesTest = select(housesTest, -Alley)
-# 
-# # Drop Utilities as all but 1 are "AllPub". Drop PoolQC, Fence, MiscFeature, FireplaceQu, and LotFrontage, as many are missing
-# housesTrain = select(housesTrain, c(-Utilities, - PoolQC, -Fence, -MiscFeature, -FireplaceQu, -LotFrontage))
-# housesTest = select(housesTest, c(-Utilities, - PoolQC, -Fence, -MiscFeature, -FireplaceQu, -LotFrontage))
+# From the plot below, LotArea should likely cut any value off at 30,000 sq ft
+housesTrain$LotArea = clamp(housesTrain$LotArea, lower = 0, upper = 30000)
+housesTest$LotArea = clamp(housesTest$LotArea, lower = 0, upper = 30000)
+
+# From the plot below, GrLivArea should likely cut any value off at 4000 sq ft
+housesTrain$GrLivArea = clamp(housesTrain$GrLivArea, lower = 0, upper = 4000)
+housesTest$GrLivArea = clamp(housesTest$GrLivArea, lower = 0, upper = 4000)
+
+# From the plot below, MSSubClass looks to have a quadratic relationship
+
+# From the plot below, LotArea should should have a log relationship, which means each value should be greater than or equal to 1
+housesTrain$LotArea = clamp(housesTrain$LotArea, lower = 1)
+housesTest$LotArea = clamp(housesTest$LotArea, lower = 1)
+
+# From the plot below, OpenPorchSF should should have a log relationship, which means each value should be greater than or equal to 1
+#housesTrain$OpenPorchSF = clamp(housesTrain$OpenPorchSF, lower = 1)
+#housesTest$OpenPorchSF = clamp(housesTest$OpenPorchSF, lower = 1)
+
+# From the plot below, MiscVal should should have a log relationship, which means each value should be greater than or equal to 1
+housesTrain$MiscVal = clamp(housesTrain$MiscVal, lower = 1)
+housesTest$MiscVal = clamp(housesTest$MiscVal, lower = 1)
+
+# From the plot below, PoolArea should should have a log relationship, which means each value should be greater than or equal to 1
+#housesTrain$PoolArea = clamp(housesTrain$PoolArea, lower = 1)
+#housesTest$PoolArea = clamp(housesTest$PoolArea, lower = 1)
+
+# Screen for outliers by looking at the histograms of any variables that are all numeric
+housesTrain |> 
+  select(where(is.numeric)) |>
+  gather() |>
+  ggplot(aes(x = value)) + 
+    facet_wrap(~key, scales = "free") + 
+    geom_histogram()
 
 # MoSold should be a factor instead of integer
 housesTrain$MoSold = factor(housesTrain$MoSold, levels = seq(1, 12))
 housesTest$MoSold = factor(housesTest$MoSold, levels = seq(1, 12))
+
+# The sale price has a wide variance. Applying a log transformation helps
+housesTrain |>
+  ggplot(aes(x = log(SalePrice))) +
+  geom_histogram()
 
 # Log of SalePrice should be used to reduce the variance
 housesTrain$SalePrice = log(housesTrain$SalePrice)
@@ -115,14 +146,9 @@ housesTrain$SalePrice = log(housesTrain$SalePrice)
 Full model creation
 
 ```{r}
-# The sale price has a wide variance. Applying a log transformation helps
-housesTrain |>
-  ggplot(aes(x = SalePrice)) +
-  geom_histogram()
-
 housesTrain |> count(`3SsnPorch`)
 
-fit = lm(SalePrice ~ MSSubClass + LotArea + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + MiscVal + MoSold + YrSold + SaleCondition, data = housesTrain)
+fit = lm(SalePrice ~ I(MSSubClass^2) + log(LotArea) + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + log(MiscVal) + MoSold + YrSold + SaleCondition, data = housesTrain)
 summary(fit)
 
 ```
@@ -136,7 +162,7 @@ results = results |>
   select(Id, SalePrice)
 
 # Export
-write_csv(results, "test_submission_4.csv")
+write_csv(results, "test_submission_10.csv")
 ```
 
 Try using forward stepping approach
