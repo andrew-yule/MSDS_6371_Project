@@ -8,19 +8,17 @@ editor_options:
 ---
 
 Load required libraries
-
 ```{r}
-#library(MASS)
+library(MASS)
 library(olsrr)
-library(tidyverse)
-library(terra)
-
-library(broom)
 library(caret)
+library(terra)
+library(performance)
+library(tidyverse)
+library(broom)
 ```
 
 Read training and test data, then drop any columns containing missing values
-
 ```{r}
 housesTrain = read_csv("train.csv")
 housesTest = read_csv("test.csv")
@@ -53,7 +51,7 @@ housesTrain |>
     geom_histogram()
 ```
 
-The following variables should be log transformed:
+The following variables can be log transformed in order to reduce their variance:
 - LotArea
 - FirstFlrSF
 - SecondFlrSF
@@ -67,8 +65,8 @@ The following variables should be log transformed:
 - MiscVal
 - SalePrice
 
+Additionally, MoSold variable was identified as needing to be a factor instead of an integer
 ```{r}
-
 # MoSold should be a factor instead of integer
 housesTrain$MoSold = factor(housesTrain$MoSold, levels = seq(1, 12))
 housesTest$MoSold = factor(housesTest$MoSold, levels = seq(1, 12))
@@ -90,6 +88,7 @@ housesTrain = housesTrain |>
     SalePrice = log(clamp(SalePrice, lower = 1)),
   )
 
+# Perform any transformations on the test data as well
 housesTest = housesTest |>
   mutate(
     LotArea = log(clamp(LotArea, lower = 1)),
@@ -106,14 +105,19 @@ housesTest = housesTest |>
   )
 ```
 
-Forward step regression
+Forward step regression using olss
 ```{r}
-forwardResults = ols_step_forward_aic(lm(SalePrice ~ ., data = housesTrain))
+forwardResults = ols_step_forward_aic(lm(SalePrice ~ ., data = housesTrain), details = TRUE, progress = TRUE)
 forwardModel = forwardResults$model
+summary(forwardModel)
+
+# Retrieved from the output
+# forwardModel = lm(SalePrice ~ OverallQual + GrLivArea + Neighborhood + OverallCond + HouseStyle + YearBuilt + LotArea + RoofMatl + KitchenAbvGr + SaleCondition + Condition2 + Foundation + Fireplaces + Heating + ExterQual + Condition1 + PoolArea + ScreenPorch + WoodDeckSF + HeatingQC + CentralAir + BedroomAbvGr + FirstFlrSF + `2ndFlrSF` + Street + LandSlope + HalfBath + EnclosedPorch + SecondFlrSF + MiscVal + PavedDrive + `1stFlrSF` + BldgType + ExterCond + YearRemodAdd, data = housesTrain)
 
 plot(forwardResults)
 
-summary(forwardModel)
+plot(forwardModel)
+#performance::check_model(forwardModel, check = c("linearity", "normality", "qq"))
 
 results = housesTest
 results$SalePrice = exp(predict.lm(forwardModel, newdata = housesTest))
@@ -122,13 +126,14 @@ results = results |>
 
 # Export
 write_csv(results, "Submissions/Forward_Model.csv")
-
 ```
 
 Backward step regression
 ```{r}
-backwardResults = ols_step_backward_aic(lm(SalePrice ~ ., data = housesTrain))
+backwardResults = ols_step_backward_aic(lm(SalePrice ~ ., data = housesTrain), details = TRUE, progress = TRUE)
 backwardModel = backwardResults$model
+
+# backwardModel = lm(SalePrice ~ LotArea + Street + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + GrLivArea + HalfBath + BedroomAbvGr + KitchenAbvGr + Fireplaces + PavedDrive + WoodDeckSF + EnclosedPorch + ScreenPorch + PoolArea + MiscVal + SaleCondition + FirstFlrSF + SecondFlrSF, data = housesTrain)
 
 plot(backwardResults)
 
@@ -141,12 +146,13 @@ results = results |>
 
 # Export
 write_csv(results, "Submissions/Backward_Model.csv")
-
 ```
 
 Stepwise regression
 ```{r}
 stepResults = ols_step_both_aic(lm(SalePrice ~ ., data = housesTrain), details = TRUE)
+
+# ols_step_both_aic does not have a direct output for the model determined so we have to write the results as we go and then copy the final model produced and paste it below
 stepModel = lm(SalePrice ~ OverallQual + GrLivArea + Neighborhood + OverallCond + YearBuilt + LotArea + RoofMatl + KitchenAbvGr + SaleCondition + Condition2 + Foundation + Fireplaces + Heating + ExterQual + Condition1 + PoolArea + ScreenPorch + WoodDeckSF + HeatingQC + CentralAir + BedroomAbvGr + FirstFlrSF + `2ndFlrSF` + Street + LandSlope + HalfBath + EnclosedPorch + SecondFlrSF + MiscVal + PavedDrive + BldgType + `1stFlrSF` + ExterCond + LotConfig + YearRemodAdd, data = housesTrain)
 
 plot(stepResults)
@@ -160,13 +166,109 @@ results = results |>
 
 # Export
 write_csv(results, "Submissions/Both_Model.csv")
+```
+
+# For the custom model use the variables determined from the forward selection and then try and improve the model using CV
+```{r}
+
+housesTrainSub = housesTrain |>
+  select(OverallQual, GrLivArea, Neighborhood, OverallCond, HouseStyle, YearBuilt, LotArea, RoofMatl, KitchenAbvGr, SaleCondition, Condition2, Foundation, Fireplaces, Heating, ExterQual, Condition1, PoolArea, ScreenPorch, WoodDeckSF, HeatingQC, CentralAir, BedroomAbvGr, FirstFlrSF, `2ndFlrSF`, Street, LandSlope, HalfBath, EnclosedPorch, SecondFlrSF, MiscVal, PavedDrive, `1stFlrSF`, BldgType, ExterCond, YearRemodAdd, SalePrice)
+
+# Define the number of subsets (or "folds") to use
+#train_control = trainControl(method = "cv", number = 5)
+train_control = trainControl(method = "LOOCV")
+
+#train the model
+customModel = train(SalePrice ~ ., data = housesTrainSub, method = "lm", trControl = train_control)
+print(customModel)
+summary(customModel)
+
+results = housesTest
+results$SalePrice = exp(predict(customModel, newdata = housesTest))
+results = results |>
+  select(Id, SalePrice)
+
+# Export
+write_csv(results, "Submissions/Custom_Model.csv")
 
 ```
 
-Best custom model using caret
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Best custom model starting with the forward model and then adding in interactions
 ```{r}
-customModel = lm(SalePrice ~ I(MSSubClass^2) + log(LotArea) + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + log(MiscVal) + MoSold + YrSold + SaleCondition, data = housesTrain)
-summary(fit)
+
+# housesTrainSub = housesTrain |>
+#   select(OverallQual, GrLivArea, Neighborhood, OverallCond, HouseStyle, YearBuilt, LotArea, RoofMatl, KitchenAbvGr, SaleCondition, Condition2, Foundation, Fireplaces, Heating, ExterQual, Condition1, PoolArea, ScreenPorch, WoodDeckSF, HeatingQC, CentralAir, BedroomAbvGr, FirstFlrSF, `2ndFlrSF`, Street, LandSlope, HalfBath, EnclosedPorch, SecondFlrSF, MiscVal, PavedDrive, `1stFlrSF`, BldgType, ExterCond, YearRemodAdd, SalePrice)
+
+housesTrainSub = housesTrain |>
+  select(OverallQual, GrLivArea, Neighborhood, OverallCond, HouseStyle, YearBuilt, LotArea, SalePrice)
+
+forwardResultsInteractions = ols_step_forward_p(lm(SalePrice ~ . + (.)^2, data = housesTrainSub), details = TRUE, progress = TRUE)
+
+plot(forwardResultsInteractions)
+
+forwardResultsInteractionsModel = forwardResultsInteractions$model
+summary(forwardResultsInteractionsModel)
+
+results = housesTest
+results$SalePrice = exp(predict(forwardResultsInteractionsModel, newdata = housesTest))
+results = results |>
+  select(Id, SalePrice)
+
+# Export
+write_csv(results, "Submissions/Custom_Model.csv")
+
+```
+
+Best custom model starting with the forward model, which was found to be the best between forward / backward / stepwise
+```{r}
+customModel = lm(SalePrice ~ OverallQual + GrLivArea + Neighborhood + OverallCond + HouseStyle + YearBuilt + LotArea + RoofMatl + KitchenAbvGr + SaleCondition + Condition2 + Foundation + Fireplaces + Heating + ExterQual + Condition1 + PoolArea + ScreenPorch + WoodDeckSF + HeatingQC + CentralAir + BedroomAbvGr + FirstFlrSF + `2ndFlrSF` + Street + LandSlope + HalfBath + EnclosedPorch + SecondFlrSF + MiscVal + PavedDrive + `1stFlrSF` + BldgType + ExterCond + YearRemodAdd, data = housesTrain)
+summary(customModel)
+
+#control = trainControl(method = "LOOCV", number = 10)
+control = trainControl(method = "cv")
+customModel2 = train(SalePrice ~ OverallQual + GrLivArea + Neighborhood + OverallCond + HouseStyle + YearBuilt + LotArea + RoofMatl + KitchenAbvGr + SaleCondition + Condition2 + Foundation + Fireplaces + Heating + ExterQual + Condition1 + PoolArea + ScreenPorch + WoodDeckSF + HeatingQC + CentralAir + BedroomAbvGr + FirstFlrSF + `2ndFlrSF` + Street + LandSlope + HalfBath + EnclosedPorch + SecondFlrSF + MiscVal + PavedDrive + `1stFlrSF` + BldgType + ExterCond + YearRemodAdd, data = housesTrain, method = "lm", trControl = control)
+
+summary(customModel2)
+
+results = housesTest
+results$SalePrice = exp(predict(customModel2, newdata = housesTest))
+results = results |>
+  select(Id, SalePrice)
+
+# Export
+write_csv(results, "Submissions/Custom_Model.csv")
+
+```
+
+Best custom model using cross validation
+```{r}
+# customModel = lm(SalePrice ~ I(MSSubClass^2) + log(LotArea) + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + log(MiscVal) + MoSold + YrSold + SaleCondition, data = housesTrain)
+# summary(fit)
+
+customModel = lm(SalePrice ~ MSSubClass + LotArea + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + MiscVal + MoSold + YrSold + SaleCondition, data = housesTrain)
+summary(customModel)
+
+customModel = lm(SalePrice ~ . +(.)^2, data = housesTrain)
+summary(customModel)
 
 #control = trainControl(method = "LOOCV", number = 10)
 control = trainControl(method = "cv")
@@ -180,25 +282,19 @@ results = results |>
 
 # Export
 write_csv(results, "Submissions/Custom_Model.csv")
-
 ```
 
-Best custom model using external cross validation
+Custom model using MASS
 ```{r}
-customModel = lm(SalePrice ~ I(MSSubClass^2) + log(LotArea) + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofStyle + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + LowQualFinSF + GrLivArea + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + TotRmsAbvGrd + Fireplaces + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + log(MiscVal) + MoSold + YrSold + SaleCondition, data = housesTrain)
-summary(fit)
-
-#control = trainControl(method = "LOOCV", number = 10)
-control = trainControl(method = "cv")
-customModel = train(SalePrice ~ ., data = housesTrain, method = "lm", trControl = control)
-summary(customModel)
+initial = lm(SalePrice ~ ., data = housesTrain)
+stepModel = stepAIC(initial, direction = "both", trace = TRUE)
+summary(stepModel)
 
 results = housesTest
-results$SalePrice = exp(predict(customModel, newdata = housesTest))
+results$SalePrice = exp(predict(stepModel, newdata = housesTest))
 results = results |>
-  select(Id, SalePrice)
+  dplyr::select(Id, SalePrice)
 
 # Export
 write_csv(results, "Submissions/Custom_Model.csv")
-
 ```
