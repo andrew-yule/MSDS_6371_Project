@@ -12,15 +12,15 @@ editor_options:
 This analysis focuses on applying multi-linear regression techniques to predict the sales price of homes in the Ames, Iowa area. Two specific questions of interest (QOI) were identified:
 
 1.  Focusing on 3 specific neighborhoods in Ames, what is the best linear regression model that can be constructed solely utilizing the square footage of the living room and what can be interpreted from that model?
-2.  Utilizing all available variables and focusing on every neighborhood, what are the best linear regression models that can be constructed?
+2.  Utilizing all available variables and focusing on every neighborhood, what are the best linear regression models that can be constructed? For this QOI, submissions will be judged based on a [Kaggle competition](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques), which sources the data for this analysis.
 
 # Data Description
 
-For this analysis, housing data was obtained between the years of 2006 and 2010 from 1,460 homes in the Ames area. Approximately 80 variables were collected for each home identifying various features that may contribute to a homes final sale price.
+For this analysis, housing data was obtained between the years of 2006 and 2010 from 1,460 homes in the Ames area. Approximately 80 variables were collected for each home identifying various features that may contribute to a homes final sale price. The variables ranged in nature from quantitative vaalues like square footage of certain parts of the home, to qualitative values like quality rankings and building materials.
 
-Upon analysis of the data, numerous variables were found to have a high amount of associated missing values and were subsequently removed from the analysis.
+After analysis of the data, numerous variables were found to have a high number of missing values and were subsequently removed from the analysis.
 
-Many numerical variables in the available data showed high variance and were therefore given a log transformation to better perform in a linear regression model. The full list of variables that received a log transformation can be found below. It should be noted that sales price (the variable of interest) was among the variables.
+Many numerical variables in the available data demonstrated large amounts of variance. Log transformations were used to reduce the variance and ultimately improve the performance of linear regression models. The full list of variables that received a log transformation can be found below. It should be noted that sales price (the variable of interest) was among the variables.
 
 - LotArea
 - FirstFlrSF
