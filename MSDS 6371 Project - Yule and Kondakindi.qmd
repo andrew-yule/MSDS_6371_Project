@@ -20,7 +20,7 @@ For this analysis, housing data was obtained between the years of 2006 and 2010 
 
 Upon analysis of the data, numerous variables were found to have a high amount of associated missing values and were subsequently removed from the analysis.
 
-Many numerical variables in the available data showed high variance and were therefore given a log transformation to better perform in a linear regression model. The full list of variables that received a log transformation can be found below. It should be noted that sales price was among the variables.
+Many numerical variables in the available data showed high variance and were therefore given a log transformation to better perform in a linear regression model. The full list of variables that received a log transformation can be found below. It should be noted that sales price (the variable of interest) was among the variables.
 
 - LotArea
 - FirstFlrSF
