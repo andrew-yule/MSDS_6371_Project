@@ -105,23 +105,45 @@ housesTest = housesTest |>
   )
 ```
 
+Define a function to determine the PRESS of each model
+```{r}
+PRESS = function(model) {
+    i = residuals(model)/(1 - lm.influence(model)$hat)
+    sum(i^2)
+}
+```
+
 Forward step regression using olss
 ```{r}
+# Remove high influence rows
+# housesTrain2 = housesTrain |>
+#   filter(!row_number() %in% c(121, 251, 272, 326, 584, 1004, 1231, 1276, 1299, 1322))
+
 forwardResults = ols_step_forward_aic(lm(SalePrice ~ ., data = housesTrain), details = TRUE, progress = TRUE)
 forwardModel = forwardResults$model
 summary(forwardModel)
 
+# Plot the stepping results impact on AIC
 plot(forwardResults)
 
+# Plot the residual / leverage functions
 plot(forwardModel)
-#performance::check_model(forwardModel, check = c("linearity", "normality", "qq"))
 
+# Calculate the PRESS for the model
+tibble(resids = residuals(forwardModel), hats = tidy(hatvalues(forwardModel))$x) |>
+  filter(hats != 1) |>
+  mutate(i = (resids / (1-hats))^2) |>
+  select(i) |>
+  pull() |>
+  sum()
+
+# Calculate values against the test data set
 results = housesTest
 results$SalePrice = exp(predict.lm(forwardModel, newdata = housesTest))
 results = results |>
   dplyr::select(Id, SalePrice)
 
-# Export
+# Export and submit to Kaggle
 write_csv(results, "Submissions/Forward_Model.csv")
 ```
 
@@ -131,18 +153,27 @@ backwardResults = ols_step_backward_aic(lm(SalePrice ~ ., data = housesTrain), d
 backwardModel = backwardResults$model
 summary(backwardModel)
 
-# backwardModel = lm(SalePrice ~ LotArea + Street + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + OverallQual + OverallCond + YearBuilt + YearRemodAdd + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + `1stFlrSF` + `2ndFlrSF` + GrLivArea + HalfBath + BedroomAbvGr + KitchenAbvGr + Fireplaces + PavedDrive + WoodDeckSF + EnclosedPorch + ScreenPorch + PoolArea + MiscVal + SaleCondition + FirstFlrSF + SecondFlrSF, data = housesTrain)
-
+# Plot the stepping results impact on AIC
 plot(backwardResults)
 
+# Plot the residual / leverage functions
 plot(backwardModel)
 
+# Calculate the PRESS for the model
+tibble(resids = residuals(backwardModel), hats = tidy(hatvalues(backwardModel))$x) |>
+  filter(hats != 1) |>
+  mutate(i = (resids / (1-hats))^2) |>
+  select(i) |>
+  pull() |>
+  sum()
+
+# Calculate values against the test data set
 results = housesTest
 results$SalePrice = exp(predict.lm(backwardModel, newdata = housesTest))
 results = results |>
   dplyr::select(Id, SalePrice)
 
-# Export
+# Export and submit to Kaggle
 write_csv(results, "Submissions/Backward_Model.csv")
 ```
 
@@ -152,19 +183,27 @@ stepResults = ols_step_both_aic(lm(SalePrice ~ ., data = housesTrain), details =
 
 # ols_step_both_aic does not have a direct output for the model determined so we have to write the results as we go and then copy the final model produced and paste it below
 stepModel = lm(SalePrice ~ OverallQual + GrLivArea + Neighborhood + OverallCond + YearBuilt + LotArea + RoofMatl + KitchenAbvGr + SaleCondition + Condition2 + Foundation + Fireplaces + Heating + ExterQual + Condition1 + PoolArea + ScreenPorch + WoodDeckSF + HeatingQC + CentralAir + BedroomAbvGr + FirstFlrSF + `2ndFlrSF` + Street + LandSlope + HalfBath + EnclosedPorch + SecondFlrSF + MiscVal + PavedDrive + BldgType + `1stFlrSF` + ExterCond + LotConfig + YearRemodAdd, data = housesTrain)
-
+# Plot the stepping results impact on AIC
 plot(stepResults)
 
-summary(stepModel)
-
+# Plot the residual / leverage functions
 plot(stepModel)
 
+# Calculate the PRESS for the model
+tibble(resids = residuals(stepModel), hats = tidy(hatvalues(stepModel))$x) |>
+  filter(hats != 1) |>
+  mutate(i = (resids / (1-hats))^2) |>
+  select(i) |>
+  pull() |>
+  sum()
+
+# Calculate values against the test data set
 results = housesTest
 results$SalePrice = exp(predict.lm(stepModel, newdata = housesTest))
 results = results |>
   select(Id, SalePrice)
 
-# Export
+# Export and submit to Kaggle
 write_csv(results, "Submissions/Step_Model.csv")
 ```
 
@@ -174,11 +213,12 @@ customModel = lm(SalePrice ~ I(MSSubClass^2) + I(LotArea)^2 + Street + LotShape 
 
 summary(customModel)
 
+# Calculate values against the test data setresults = housesTest
 results = housesTest
 results$SalePrice = exp(predict(customModel, newdata = housesTest))
 results = results |>
   select(Id, SalePrice)
 
-# Export
+# Export and submit to Kaggle
 write_csv(results, "Submissions/Custom_Model.csv")
 ```

@@ -12,15 +12,15 @@ editor_options:
 This analysis focuses on applying multi-linear regression techniques to predict the sales price of homes in the Ames, Iowa area. Two specific questions of interest (QOI) were identified:
 
 1.  Focusing on 3 specific neighborhoods in Ames, what is the best linear regression model that can be constructed solely utilizing the square footage of the living room and what can be interpreted from that model?
-2.  Utilizing all available variables and focusing on every neighborhood, what are the best linear regression models that can be constructed? For this QOI, submissions will be judged based on a [Kaggle competition](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques), which sources the data for this analysis.
+2.  Utilizing all available variables and focusing on every neighborhood, what are the best linear regression models that can be constructed? For this QOI, submissions will be judged based on a [Kaggle competition](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques), using produced model predictions to achieve the lowest root mean squared error.
 
 # Data Description
 
-For this analysis, housing data was obtained between the years of 2006 and 2010 from 1,460 homes in the Ames area. Approximately 80 variables were collected for each home identifying various features that may contribute to a homes final sale price. The variables ranged in nature from quantitative vaalues like square footage of certain parts of the home, to qualitative values like quality rankings and building materials.
+For this analysis, housing data from the Ames area was supplied between the years of 2006 and 2010 from 1,460 homes. Approximately 80 variables were collected for each home identifying various features that may contribute to a homes final sale price. The variables ranged in nature from quantitative values like square footage of certain parts of the home, to qualitative values like quality rankings and building materials.
 
-After analysis of the data, numerous variables were found to have a high number of missing values and were subsequently removed from the analysis.
+Upon analysis of the data, numerous variables were found to have a high number of missing values and were subsequently removed from the analysis.
 
-Many numerical variables in the available data demonstrated large amounts of variance. Log transformations were used to reduce the variance and ultimately improve the performance of linear regression models. The full list of variables that received a log transformation can be found below. It should be noted that sales price (the variable of interest) was among the variables.
+Many numerical variables in the available data demonstrated high variance. Log transformations were used to reduce the variance and ultimately improve the performance of linear regression models. The full list of variables that received a log transformation can be found below. It should be noted that sales price (the variable of interest) was among the variables recieving a log transformation.
 
 - LotArea
 - FirstFlrSF
@@ -39,13 +39,21 @@ Many numerical variables in the available data demonstrated large amounts of var
 
 ### Question 1
 
-(Brief introduction to the questions of interest and the setting of the problem.)
-
 #### Restatement of the Problem
 
 (Where did the data come from? How big is it? How many observations? Where can we find out more? What are the specific variables that we need to know with respect to your analysis?)
 
+For the first question of interest, the objective was to utilize only the greater living room square footage of a house to help predict the sales price in the three Ames neighborhoods of Brookside, Edwards, and North Ames.
+
+Limiting the initial dataset to only these 3 neighborhoods results in 383 observations with 58, 100, and 225 for Brookside, Edwards, and North Ames respectively.
+
 #### Build and Fit the Model
+
+Three models were fit to the data:
+
+1. Average per neighborhood - A model which assumes only the average sales price for each neighborhood.
+2. Varying y-intercept / same slopes - A model which allows for varying y-intercepts across each neighborhood while maintaining the same relationship in sales price and living room square footage.
+3. Varying y-intercept / varying slopes - A model which allows for varying y-intercepts across each neighborhood in addition to varying relationships in sales price and living room square footage.
 
 #### Checking the Assumptions
 
@@ -53,7 +61,13 @@ Many numerical variables in the available data demonstrated large amounts of var
 
 #### Comparing Competing Models
 
-(Adj R2 Internal CV Press)
+The table below summarizes the key performance metrics associated with each of the three models produced. Overall the third model, which allows for varying y-intercepts and slopes across each neighborhood, outperforms the other 2 models.
+
+|     Model                               |  Adjusted  R2   |   CV PRESS    |
+|-----------------------------------------|-----------------|---------------|
+|   Average per neighborhood              | 0.0880          |   26.44       |
+|   Varying y-intercept / same slope      | 0.4857          |   15.00       |
+|   Varying y-intercepts / varying slopes | 0.5056          |   14.61       |
 
 #### Parameters
 
@@ -71,7 +85,7 @@ A web application was created to provide access to the model and can be found at
 
 ### Question 2
 
-For the second question of interest, the objective was to utilize all available data and variables to create the best linear regression model possible for predicting home sales prices. There are numerous techniques available for creating multi-linear regression models. This QOI focused on applying forward selection, backwards elimination, and stepwise selection to produce the highest performing models. Additionally, a final custom model was fit using cross validation techniques.
+For the second question of interest, the objective was to utilize all available data and variables to create the best linear regression model possible for predicting home sales prices. There are numerous techniques available for creating multi-linear regression models. This QOI focused on applying forward selection, backwards elimination, and stepwise selection to produce the highest performing models.
 
 #### Model Selection
 
@@ -97,17 +111,19 @@ SalePrice = OverallQual + GrLivArea + Neighborhood + OverallCond + YearBuilt + L
 
 #### Comparing Competing Models
 
-The table below summarizes the key performance metrics associated with each of the three models produced. Each model was found to have the same Adjusted R Squared metric without rounding errors.
+The table below summarizes the key performance metrics associated with each of the three models produced. Each model was found to have the same Adjusted R Squared metric within rounding errors. According to the predictive residual sum of squares metric, the stepwise selection model performed the best. When used to predict unknown home sales prices as part of the Kaggle competition, the Forward Selection model was found to achieve the best (lowest) Kaggle score of 0.13496. A custom model was excluded from this table as it was unable to achieve higher performance than the Forward and Stepwise selection methods.
 
-|     Model                 |  Adjusted  R2   |   CV Press    |   Kaggle Score    |
+|     Model                 |  Adjusted  R2   |   CV PRESS    |   Kaggle Score    |
 |---------------------------|-----------------|---------------|-------------------|
-|   Forward Selection       | 0.9094          |   X           |   0.13496         |
-|   Backward Elimination    | 0.9094          |   X           |   0.13554         |
-|   Stepwise Selection      | 0.9094          |   X           |   0.13554         |
+|   Forward Selection       | 0.9094          |   26.12       |   0.13496         |
+|   Backward Elimination    | 0.9094          |   25.95       |   0.13554         |
+|   Stepwise Selection      | 0.9094          |   25.94       |   0.13554         |
 
 #### Conclusion
 
-(A short summary of the analysis)
+In this analysis, a data set of home sales prices from Ames, Iowa was explored using multi-linear regression techniques. A model was produced to predict the sales price of homes specifically in the North Ames, Edwards, and Brk Side neighborhoods using only the greater living area square footage. That model achieved an RSquared metric of XX, meaning XX% of the variance in home prices in those 3 neighborhoods can be explained soley by the living room squared footage.
+
+Finally, 4 additional models were produced to predict homes sales prices based on all variables available. Various multi-linear regression stepping approaches were used and the forward selection method was found to perform the best overall with an adjusted RSquared metric of 0.9094 meaning over 90% of the variance in home prices could be explained by the variables and associated model. Additionally, a Kaggle competition score of 0.13496 was achieved by the model on a blind test.
 
 # Appendix
 
