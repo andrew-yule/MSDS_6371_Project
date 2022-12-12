@@ -8,6 +8,7 @@ editor_options:
 ---
 
 Load required libraries
+
 ```{r}
 library(MASS)
 library(olsrr)
@@ -19,6 +20,7 @@ library(broom)
 ```
 
 Read training and test data, then drop any columns containing missing values
+
 ```{r}
 housesTrain = read_csv("train.csv")
 housesTest = read_csv("test.csv")
@@ -51,21 +53,10 @@ housesTrain |>
     geom_histogram()
 ```
 
-The following variables can be log transformed in order to reduce their variance:
-- LotArea
-- FirstFlrSF
-- SecondFlrSF
-- GrLivArea
-- WoodDeckSF
-- OpenPorchSF
-- EnclosedPorch
-- ThirdSsnPorch
-- ScreenPorch
-- PoolArea
-- MiscVal
-- SalePrice
+The following variables can be log transformed in order to reduce their variance: - LotArea - FirstFlrSF - SecondFlrSF - GrLivArea - WoodDeckSF - OpenPorchSF - EnclosedPorch - ThirdSsnPorch - ScreenPorch - PoolArea - MiscVal - SalePrice
 
 Additionally, MoSold variable was identified as needing to be a factor instead of an integer
+
 ```{r}
 # MoSold should be a factor instead of integer
 housesTrain$MoSold = factor(housesTrain$MoSold, levels = seq(1, 12))
@@ -106,6 +97,7 @@ housesTest = housesTest |>
 ```
 
 Define a function to determine the PRESS of each model
+
 ```{r}
 PRESS = function(model) {
     i = residuals(model)/(1 - lm.influence(model)$hat)
@@ -114,6 +106,7 @@ PRESS = function(model) {
 ```
 
 Forward step regression using olss
+
 ```{r}
 # Remove high influence rows
 # housesTrain2 = housesTrain |>
@@ -148,6 +141,7 @@ write_csv(results, "Submissions/Forward_Model.csv")
 ```
 
 Backward step regression
+
 ```{r}
 backwardResults = ols_step_backward_aic(lm(SalePrice ~ ., data = housesTrain), details = TRUE, progress = TRUE)
 backwardModel = backwardResults$model
@@ -178,6 +172,7 @@ write_csv(results, "Submissions/Backward_Model.csv")
 ```
 
 Stepwise regression
+
 ```{r}
 stepResults = ols_step_both_aic(lm(SalePrice ~ ., data = housesTrain), details = TRUE)
 
@@ -208,6 +203,7 @@ write_csv(results, "Submissions/Step_Model.csv")
 ```
 
 # Custom model using all variables - note, this was unable to achieve higher accuracy than the forward selection results
+
 ```{r}
 customModel = lm(SalePrice ~ I(MSSubClass^2) + I(LotArea)^2 + Street + LotShape + LandContour + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + I(OverallQual^2) + OverallCond + I(YearBuilt^2) + YearRemodAdd + RoofStyle + RoofMatl + ExterQual + ExterCond + Foundation + Heating + HeatingQC + CentralAir + log(`1stFlrSF`) + `2ndFlrSF` + LowQualFinSF + I(GrLivArea^2) + FullBath + HalfBath + BedroomAbvGr + KitchenAbvGr + I(TotRmsAbvGrd^2) + I(Fireplaces^2) + PavedDrive + WoodDeckSF + OpenPorchSF + EnclosedPorch + `3SsnPorch` + ScreenPorch + PoolArea + MiscVal + MoSold + YrSold + SaleCondition, data = housesTrain)
 

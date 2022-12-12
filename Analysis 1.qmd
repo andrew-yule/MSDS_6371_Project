@@ -1,0 +1,65 @@
+---
+title: "Analysis 1"
+format: pdf
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+Define a function to determine the PRESS of each model
+```{r}
+PRESS = function(model) {
+    i = residuals(model)/(1 - lm.influence(model)$hat)
+    sum(i^2)
+}
+```
+
+Create models for Sales Price for the neighborhood Brookside, Edwards, and North Ames neighborhoods.
+```{r}
+
+housesTrain |>
+  ggplot(aes(x = GrLivArea, y = SalePrice)) +
+  geom_point()
+
+housesTrainNeighborhood = housesTrain |>
+  filter(Neighborhood %in% c("BrkSide", "Edwards", "NAmes"))
+
+housesTrainNeighborhood$Neighborhood = factor(housesTrainNeighborhood$Neighborhood, levels = c("NAmes", "BrkSide", "Edwards"))
+
+housesTrainNeighborhood |>
+  group_by(Neighborhood) |>
+  summarize(n = n())
+
+housesTrainNeighborhood |>
+  ggplot(aes(x = GrLivArea, y = SalePrice, color = Neighborhood)) +
+  geom_point() +
+  facet_wrap(~Neighborhood) +
+  theme(legend.position="none") +
+  xlab("Log Value of Living Area Square Footage") +
+  ylab("Log Value of Sales Price") +
+  ggtitle("Home Sales Price and Living Area")
+
+model1 = lm(SalePrice ~ Neighborhood, data = housesTrainNeighborhood)
+summary(model1)
+PRESS(model1)
+
+model2 = lm(SalePrice ~ Neighborhood + GrLivArea, data = housesTrainNeighborhood)
+summary(model2)
+PRESS(model2)
+
+model3 = lm(SalePrice ~ Neighborhood + GrLivArea + Neighborhood:GrLivArea, data = housesTrainNeighborhood)
+summary(model3)
+PRESS(model3)
+
+plot(model3)
+
+housesTrainNeighborhood |>
+  select(Neighborhood, GrLivArea, SalePrice) |>
+  mutate(SalePricePredicted = predict(model3, newdata = tibble(Neighborhood = Neighborhood, GrLivArea = GrLivArea))) |>
+  ggplot() +
+  geom_point(aes(x = exp(GrLivArea), y = exp(SalePrice), color = Neighborhood)) +
+  geom_line(aes(x = exp(GrLivArea), y = exp(SalePricePredicted), color = Neighborhood)) +
+  facet_wrap(~Neighborhood) +
+  theme(legend.position="none")
+
+```
